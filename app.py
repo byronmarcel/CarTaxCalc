@@ -34,6 +34,14 @@ st.markdown("""
         border-bottom: 1px solid rgba(79, 172, 254, 0.3);
         padding-bottom: 5px;
     }
+    
+    .main-title {
+        text-align: center; 
+        color: white; 
+        margin-bottom: 30px; 
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
 
     /* 4. TABS STYLING (CENTERED, NO ICONS) */
     .stTabs [data-baseweb="tab-list"] {
@@ -44,7 +52,7 @@ st.markdown("""
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
-        width: 200px; /* Fixed width for uniformity */
+        width: 200px;
         background-color: rgba(255, 255, 255, 0.03);
         border-radius: 8px;
         color: #888;
@@ -68,11 +76,10 @@ st.markdown("""
         color: white !important;
         border: 1px solid #30363d !important;
         border-radius: 8px !important;
-        text-align: center; /* Center text inside inputs */
+        text-align: center;
         height: 45px;
     }
     
-    /* Focus State */
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
         border-color: #4facfe !important;
         box-shadow: 0 0 10px rgba(79, 172, 254, 0.3) !important;
@@ -105,8 +112,15 @@ st.markdown("""
         white-space: nowrap; 
         overflow: hidden; 
         text-overflow: ellipsis;
+        text-align: center;
     }
-    .duty-price { font-size: 1.8rem; font-weight: 900; color: #FFFFFF; margin: 5px 0;}
+    .duty-price { 
+        font-size: 1.8rem; 
+        font-weight: 900; 
+        color: #FFFFFF; 
+        margin: 5px 0;
+        text-align: center;
+    }
     
     /* 8. SPECS GRID */
     .spec-grid {
@@ -254,14 +268,13 @@ def main():
     df, error = load_data()
 
     # CENTERED HEADER
-    st.markdown("<h2 style='text-align:center; color:white; margin-bottom:30px;'>KENYA VEHICLE DUTY CALCULATOR</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='main-title'>KENYA VEHICLE DUTY CALCULATOR</h2>", unsafe_allow_html=True)
 
     # CENTERED YOM SELECTOR
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        st.markdown('<div class="section-header">SELECT YEAR OF MANUFACTURE</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">YEAR OF MANUFACTURE</div>', unsafe_allow_html=True)
         years = list(range(2025, 2017, -1))
-        # Custom CSS forces text-align center on this specific selectbox
         yom = st.selectbox("Year of Manufacture", years, index=years.index(2018), label_visibility="collapsed")
 
     if not df.empty:
@@ -273,12 +286,11 @@ def main():
 
         # --- TAB 1: SEARCH ---
         with tab1:
-            st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True) # Spacer
+            st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
             
             # Centered Search Bar
             sc1, sc2, sc3 = st.columns([1, 6, 1])
             with sc2:
-                #st.markdown('<div class="section-header">SEARCH DATABASE</div>', unsafe_allow_html=True)
                 query = st.text_input("", placeholder="TYPE MAKE OR MODEL (e.g. TOYOTA PRADO)...", label_visibility="collapsed")
 
             filtered = df.copy()
@@ -297,7 +309,7 @@ def main():
                     <div class="unit-card">
                         <div class="car-title" title="{row['Search_Name']}">{row['Search_Name']}</div>
                         <div style="font-size:0.7rem; color:#666; text-align:center;">ESTIMATED DUTY</div>
-                        <div class="duty-price" style="text-align:center;">KES {duty_fmt}</div>
+                        <div class="duty-price">KES {duty_fmt}</div>
                         <div class="spec-grid">
                             <div class="spec-item">{row['CC']} CC</div>
                             <div class="spec-item">{row['Fuel']}</div>
@@ -364,7 +376,7 @@ def main():
                 hide_index=True
             )
 
-        # --- TAB 3: COMPARISON ---
+        # --- TAB 3: COMPARISON (FIXED DUPLICATE KEY ERROR) ---
         with tab3:
             st.markdown('<div class="section-header">SIDE-BY-SIDE COMPARISON</div>', unsafe_allow_html=True)
             choices = st.multiselect("SELECT VEHICLES", df['Search_Name'].unique())
@@ -374,14 +386,21 @@ def main():
                 comp_df = comp_df.sort_values('Duty', ascending=True)
                 comp_df['Estimated Duty'] = comp_df['Duty'].apply(lambda x: f"KES {x:,.0f}")
                 
+                # FIX: Handle Duplicate Names for Display
+                # Create a display name column that appends index if duplicate
+                if comp_df['Search_Name'].duplicated().any():
+                    comp_df['Display_Name'] = comp_df['Search_Name'] + " (" + comp_df.index.astype(str) + ")"
+                else:
+                    comp_df['Display_Name'] = comp_df['Search_Name']
+
                 c1, c2 = st.columns([1, 1])
                 with c1:
                     st.write("**SPECS MATRIX**")
-                    disp = comp_df[['Search_Name', 'Estimated Duty', 'CC', 'Fuel', 'Drive', 'Transmission']].set_index('Search_Name').T
+                    disp = comp_df[['Display_Name', 'Estimated Duty', 'CC', 'Fuel', 'Drive', 'Transmission']].set_index('Display_Name').T
                     st.table(disp)
                 with c2:
                     st.write("**DUTY CHART**")
-                    st.bar_chart(comp_df.set_index('Search_Name')['Duty'])
+                    st.bar_chart(comp_df.set_index('Display_Name')['Duty'])
 
     else:
         st.error("Data Load Error")
