@@ -164,6 +164,21 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         margin-bottom: 20px;
     }
+
+    /* 11. FOOTER CREDIT */
+    .footer-credit {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #05070a;
+        color: #4facfe;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.8rem;
+        border-top: 1px solid #333;
+        z-index: 100;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -309,7 +324,7 @@ def main():
                     <div class="unit-card">
                         <div class="car-title" title="{row['Search_Name']}">{row['Search_Name']}</div>
                         <div style="font-size:0.7rem; color:#666; text-align:center;">ESTIMATED DUTY</div>
-                        <div class="duty-price">KES {duty_fmt}</div>
+                        <div class="duty-price" style="text-align:center;">KES {duty_fmt}</div>
                         <div class="spec-grid">
                             <div class="spec-item">{row['CC']} CC</div>
                             <div class="spec-item">{row['Fuel']}</div>
@@ -376,7 +391,7 @@ def main():
                 hide_index=True
             )
 
-        # --- TAB 3: COMPARISON (FIXED DUPLICATE KEY ERROR) ---
+        # --- TAB 3: COMPARISON ---
         with tab3:
             st.markdown('<div class="section-header">SIDE-BY-SIDE COMPARISON</div>', unsafe_allow_html=True)
             choices = st.multiselect("SELECT VEHICLES", df['Search_Name'].unique())
@@ -386,8 +401,7 @@ def main():
                 comp_df = comp_df.sort_values('Duty', ascending=True)
                 comp_df['Estimated Duty'] = comp_df['Duty'].apply(lambda x: f"KES {x:,.0f}")
                 
-                # FIX: Handle Duplicate Names for Display
-                # Create a display name column that appends index if duplicate
+                # Fix Duplicates for Display
                 if comp_df['Search_Name'].duplicated().any():
                     comp_df['Display_Name'] = comp_df['Search_Name'] + " (" + comp_df.index.astype(str) + ")"
                 else:
@@ -406,6 +420,9 @@ def main():
         st.error("Data Load Error")
         st.write(error)
         st.file_uploader("Upload File Manually", type=['xlsx','csv'])
+        
+    # --- FOOTER ---
+    st.markdown('<div class="footer-credit">Created by Marcel Byron</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
