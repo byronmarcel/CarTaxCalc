@@ -10,39 +10,83 @@ st.set_page_config(page_title="Duty Calculator", layout="wide")
 
 st.markdown("""
     <style>
-    /* HIDE SIDEBAR & BLOAT */
+    /* 1. HIDE DEFAULT ELEMENTS */
     [data-testid="stSidebar"] {display: none;}
     #MainMenu, footer, header {visibility: hidden;}
-    .block-container {padding-top: 1rem; padding-bottom: 5rem;}
+    .block-container {padding-top: 2rem; padding-bottom: 5rem;}
 
-    /* DARK THEME */
+    /* 2. DARK THEME BACKGROUND */
     .stApp {
         background: radial-gradient(circle at top right, #1a1f35, #05070a);
         color: white;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Helvetica Neue', sans-serif;
     }
 
-    /* TABS */
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; background-color: transparent; }
+    /* 3. CUSTOM HEADERS (CENTERED & STYLED) */
+    .section-header {
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #4facfe;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+        border-bottom: 1px solid rgba(79, 172, 254, 0.3);
+        padding-bottom: 5px;
+    }
+
+    /* 4. TABS STYLING (CENTERED, NO ICONS) */
+    .stTabs [data-baseweb="tab-list"] {
+        justify-content: center;
+        gap: 10px;
+        background-color: transparent;
+        margin-bottom: 20px;
+    }
     .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 5px;
-        color: #fff;
+        height: 50px;
+        width: 200px; /* Fixed width for uniformity */
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        color: #888;
         font-weight: 600;
-        border: none;
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        justify-content: center;
+        text-transform: uppercase;
+        font-size: 0.85rem;
     }
-    .stTabs [aria-selected="true"] { background-color: #4facfe; color: #000; }
+    .stTabs [aria-selected="true"] {
+        background-color: #4facfe;
+        color: #05070a;
+        border-color: #4facfe;
+        box-shadow: 0 0 15px rgba(79, 172, 254, 0.3);
+    }
 
-    /* CARD DESIGN */
+    /* 5. INPUT FIELDS (SEARCH & DROPDOWN) */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div {
+        background-color: rgba(13, 17, 23, 0.8) !important;
+        color: white !important;
+        border: 1px solid #30363d !important;
+        border-radius: 8px !important;
+        text-align: center; /* Center text inside inputs */
+        height: 45px;
+    }
+    
+    /* Focus State */
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
+        border-color: #4facfe !important;
+        box-shadow: 0 0 10px rgba(79, 172, 254, 0.3) !important;
+    }
+
+    /* 6. CARD DESIGN */
     .unit-card {
         background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(79, 172, 254, 0.3);
+        border: 1px solid rgba(79, 172, 254, 0.2);
         border-radius: 12px;
         padding: 15px;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
         transition: 0.2s;
-        min-height: 220px;
+        min-height: 200px;
         backdrop-filter: blur(5px);
     }
     .unit-card:hover {
@@ -51,7 +95,7 @@ st.markdown("""
         box-shadow: 0 0 20px rgba(79, 172, 254, 0.2);
     }
 
-    /* TEXT STYLES */
+    /* 7. TEXT STYLES */
     .car-title {
         color: #4facfe;
         font-weight: 800;
@@ -64,7 +108,7 @@ st.markdown("""
     }
     .duty-price { font-size: 1.8rem; font-weight: 900; color: #FFFFFF; margin: 5px 0;}
     
-    /* SPECS GRID */
+    /* 8. SPECS GRID */
     .spec-grid {
         display: grid; 
         grid-template-columns: repeat(2, 1fr); 
@@ -80,26 +124,37 @@ st.markdown("""
         color: #ccc;
     }
     
-    /* FILTER BOX STYLING */
+    /* 9. BREAKDOWN TABLE */
+    .tax-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .tax-label { color: #aaa; }
+    .tax-val { color: #fff; font-weight: bold; }
+    .tax-total { 
+        border-top: 1px solid #4facfe; 
+        margin-top: 5px; 
+        padding-top: 5px; 
+        color: #4facfe; 
+        font-weight: 900; 
+    }
+    
+    /* 10. FILTER BOX */
     .filter-box {
-        background-color: rgba(255, 255, 255, 0.03);
+        background-color: rgba(0,0,0,0.2);
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         margin-bottom: 20px;
-    }
-
-    /* WIDGET OVERRIDES */
-    .stTextInput input, .stSelectbox div, .stMultiSelect {
-        background-color: #0d1117 !important;
-        color: white !important; 
-        border: 1px solid #30363d !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. DATA LOADER (SMART MAPPING)
+# 2. DATA LOADER
 # ==========================================
 @st.cache_data
 def load_data():
@@ -112,10 +167,8 @@ def load_data():
         if target.endswith('.csv'): df = pd.read_csv(target)
         else: df = pd.read_excel(target)
 
-        # 1. NORMALIZE HEADERS (Remove newlines/spaces)
         df.columns = [str(c).strip().replace('\n', ' ') for c in df.columns]
         
-        # 2. SMART MAPPING (Find columns by keyword)
         rename_map = {}
         for col in df.columns:
             c_lower = col.lower()
@@ -130,7 +183,6 @@ def load_data():
             
         df = df.rename(columns=rename_map)
 
-        # 3. CLEANING
         df['CRSP'] = pd.to_numeric(df['CRSP'], errors='coerce').fillna(0)
         
         def clean_cc(x):
@@ -140,10 +192,9 @@ def load_data():
         if 'CC' in df.columns: df['CC'] = df['CC'].apply(clean_cc)
         else: df['CC'] = 0
 
-        # Ensure Columns Exist
         for c in ['Make', 'Model', 'Fuel', 'Transmission', 'Drive', 'Category', 'Seating']:
             if c not in df.columns:
-                df[c] = "-" # Create empty column if missing
+                df[c] = "-" 
             else:
                 df[c] = df[c].astype(str).str.upper().str.strip().replace(['NAN', 'NONE'], '-')
 
@@ -155,7 +206,7 @@ def load_data():
 # ==========================================
 # 3. CALCULATOR
 # ==========================================
-def calculate_duty(row, yom):
+def calculate_duty_breakdown(row, yom):
     try:
         crsp = float(row['CRSP'])
         cc = row['CC']
@@ -165,7 +216,6 @@ def calculate_duty(row, yom):
         rates = {0:0.05, 1:0.05, 2:0.20, 3:0.30, 4:0.40, 5:0.50, 6:0.55, 7:0.60, 8:0.65}
         depr = rates.get(age if age <= 8 else 8, 0.70)
         
-        # Factors based on KRA 2025
         if "ELECTRIC" in fuel:
             r, id_r, ex_r = 2.15325, 0.25, 0.10
         elif (cc > 3000 and "GASOLINE" in fuel) or (cc > 2500 and "DIESEL" in fuel):
@@ -176,16 +226,26 @@ def calculate_duty(row, yom):
             r, id_r, ex_r = 2.44687, 0.35, 0.25
 
         customs_value = (crsp / r) * (1 - depr)
-        
         import_duty = customs_value * id_r
         excise_val = (customs_value + import_duty) * ex_r
         vat_val = (customs_value + import_duty + excise_val) * 0.16
         idf = customs_value * 0.025
         rdl = customs_value * 0.02
         
-        return import_duty + excise_val + vat_val + idf + rdl
+        total = import_duty + excise_val + vat_val + idf + rdl
+        
+        return {
+            "Customs Value": customs_value,
+            "Import Duty": import_duty,
+            "Excise Duty": excise_val,
+            "VAT": vat_val,
+            "IDF": idf,
+            "RDL": rdl,
+            "Total": total,
+            "Depreciation": depr * 100
+        }
     except:
-        return 0.0
+        return {"Total": 0}
 
 # ==========================================
 # 4. MAIN INTERFACE
@@ -193,29 +253,41 @@ def calculate_duty(row, yom):
 def main():
     df, error = load_data()
 
-    # HEADER & DROPDOWN
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.markdown("### 🛡️ DUTY CALCULATOR <span style='color:#4facfe'>KENYA</span>", unsafe_allow_html=True)
+    # CENTERED HEADER
+    st.markdown("<h2 style='text-align:center; color:white; margin-bottom:30px;'>KENYA VEHICLE DUTY CALCULATOR</h2>", unsafe_allow_html=True)
+
+    # CENTERED YOM SELECTOR
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
+        st.markdown('<div class="section-header">SELECT YEAR OF MANUFACTURE</div>', unsafe_allow_html=True)
         years = list(range(2025, 2017, -1))
-        yom = st.selectbox("Year of Manufacture", years, index=years.index(2018))
+        # Custom CSS forces text-align center on this specific selectbox
+        yom = st.selectbox("Year of Manufacture", years, index=years.index(2018), label_visibility="collapsed")
 
     if not df.empty:
-        df['Duty'] = df.apply(lambda row: calculate_duty(row, yom), axis=1)
+        df['Tax_Data'] = df.apply(lambda row: calculate_duty_breakdown(row, yom), axis=1)
+        df['Duty'] = df['Tax_Data'].apply(lambda x: x['Total'])
 
-        tab1, tab2, tab3 = st.tabs(["🔍 SEARCH", "📊 MARKET TREND", "⚔️ COMPARISON"])
+        # CLEAN TABS (No Icons, Centered)
+        tab1, tab2, tab3 = st.tabs(["SEARCH", "MARKET TRENDS", "COMPARISON"])
 
         # --- TAB 1: SEARCH ---
         with tab1:
-            query = st.text_input("", placeholder="🔍 Search Make or Model...", label_visibility="collapsed")
+            st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True) # Spacer
             
+            # Centered Search Bar
+            sc1, sc2, sc3 = st.columns([1, 6, 1])
+            with sc2:
+                #st.markdown('<div class="section-header">SEARCH DATABASE</div>', unsafe_allow_html=True)
+                query = st.text_input("", placeholder="TYPE MAKE OR MODEL (e.g. TOYOTA PRADO)...", label_visibility="collapsed")
+
             filtered = df.copy()
             if query:
                 filtered = filtered[filtered['Search_Name'].str.contains(query, case=False, na=False)]
             
-            filtered = filtered.sort_values('Duty')
-            st.markdown(f"<div style='margin:10px 0; color:grey'>Found {len(filtered)} vehicles</div>", unsafe_allow_html=True)
+            filtered = filtered.sort_values('Duty', ascending=True)
+
+            st.markdown(f"<div style='text-align:center; margin:15px 0; color:#666; font-size:0.8rem;'>FOUND {len(filtered)} VEHICLES</div>", unsafe_allow_html=True)
 
             cols = st.columns(3)
             for i, (idx, row) in enumerate(filtered.head(60).iterrows()):
@@ -224,8 +296,8 @@ def main():
                     st.markdown(f"""
                     <div class="unit-card">
                         <div class="car-title" title="{row['Search_Name']}">{row['Search_Name']}</div>
-                        <div style="font-size:0.7rem; color:#666;">ESTIMATED DUTY</div>
-                        <div class="duty-price">KES {duty_fmt}</div>
+                        <div style="font-size:0.7rem; color:#666; text-align:center;">ESTIMATED DUTY</div>
+                        <div class="duty-price" style="text-align:center;">KES {duty_fmt}</div>
                         <div class="spec-grid">
                             <div class="spec-item">{row['CC']} CC</div>
                             <div class="spec-item">{row['Fuel']}</div>
@@ -234,31 +306,42 @@ def main():
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    with st.expander("TAX BREAKDOWN"):
+                        tax = row['Tax_Data']
+                        st.markdown(f"""
+                        <div class="tax-row"><span class="tax-label">Depreciation ({tax.get('Depreciation',0):.0f}%)</span> <span class="tax-val">Applied</span></div>
+                        <div class="tax-row"><span class="tax-label">Customs Value</span> <span class="tax-val">{tax.get('Customs Value',0):,.0f}</span></div>
+                        <hr style="margin:5px 0; border-color:rgba(255,255,255,0.1);">
+                        <div class="tax-row"><span class="tax-label">Import Duty</span> <span class="tax-val">{tax.get('Import Duty',0):,.0f}</span></div>
+                        <div class="tax-row"><span class="tax-label">Excise Duty</span> <span class="tax-val">{tax.get('Excise Duty',0):,.0f}</span></div>
+                        <div class="tax-row"><span class="tax-label">VAT (16%)</span> <span class="tax-val">{tax.get('VAT',0):,.0f}</span></div>
+                        <div class="tax-row"><span class="tax-label">IDF (2.5%)</span> <span class="tax-val">{tax.get('IDF',0):,.0f}</span></div>
+                        <div class="tax-row"><span class="tax-label">RDL (2.0%)</span> <span class="tax-val">{tax.get('RDL',0):,.0f}</span></div>
+                        <div class="tax-row tax-total"><span class="tax-label" style="color:#4facfe">TOTAL</span> <span>{tax.get('Total',0):,.0f}</span></div>
+                        """, unsafe_allow_html=True)
 
-        # --- TAB 2: MARKET TREND (SMART DROPDOWNS) ---
+        # --- TAB 2: MARKET TRENDS ---
         with tab2:
-            st.markdown("#### 📊 Market Analysis")
-            
-            # FILTERS
+            st.markdown('<div class="section-header">MARKET ANALYSIS</div>', unsafe_allow_html=True)
             st.markdown('<div class="filter-box">', unsafe_allow_html=True)
             
-            # Helper to get unique sorted non-empty values
-            def get_opts(col):
-                return sorted([x for x in df[col].unique() if x != "-"])
+            def smart_sort(opts):
+                try: return sorted(opts, key=lambda x: float(str(x).replace(',','')) if str(x).replace('.','').isdigit() else x)
+                except: return sorted(opts)
 
             f1, f2, f3 = st.columns(3)
-            with f1: sel_drive = st.multiselect("Drive Config", get_opts('Drive'))
-            with f2: sel_fuel = st.multiselect("Fuel Type", get_opts('Fuel'))
-            with f3: sel_trans = st.multiselect("Transmission", get_opts('Transmission'))
+            with f1: sel_drive = st.multiselect("Drive Config", smart_sort(df['Drive'].unique()))
+            with f2: sel_fuel = st.multiselect("Fuel Type", smart_sort(df['Fuel'].unique()))
+            with f3: sel_trans = st.multiselect("Transmission", smart_sort(df['Transmission'].unique()))
             
             f4, f5, f6 = st.columns(3)
             with f4: sel_cc = st.multiselect("Engine CC", sorted(df['CC'].unique()))
-            with f5: sel_seats = st.multiselect("Seating", get_opts('Seating'))
-            with f6: sel_body = st.multiselect("Body Type", get_opts('Category'))
+            with f5: sel_seats = st.multiselect("Seating", smart_sort(df['Seating'].unique()))
+            with f6: sel_body = st.multiselect("Body Type", smart_sort(df['Category'].unique()))
             
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # APPLY
             market_df = df.copy()
             if sel_drive: market_df = market_df[market_df['Drive'].isin(sel_drive)]
             if sel_fuel: market_df = market_df[market_df['Fuel'].isin(sel_fuel)]
@@ -267,14 +350,13 @@ def main():
             if sel_seats: market_df = market_df[market_df['Seating'].isin(sel_seats)]
             if sel_body: market_df = market_df[market_df['Category'].isin(sel_body)]
             
-            market_df = market_df.sort_values('Duty')
+            market_df = market_df.sort_values('Duty', ascending=True)
             market_df['Estimated Duty'] = market_df['Duty'].apply(lambda x: f"KES {x:,.0f}")
 
-            # Export
             out = BytesIO()
             with pd.ExcelWriter(out, engine='xlsxwriter') as writer:
-                market_df.to_excel(writer, index=False)
-            st.download_button("📥 Download Report", out.getvalue(), "market_report.xlsx", mime="application/vnd.ms-excel")
+                market_df.drop(columns=['Tax_Data']).to_excel(writer, index=False)
+            st.download_button("📥 DOWNLOAD REPORT", out.getvalue(), "market_report.xlsx", mime="application/vnd.ms-excel")
 
             st.dataframe(
                 market_df[['Search_Name', 'Category', 'CC', 'Fuel', 'Drive', 'Transmission', 'Seating', 'Estimated Duty']], 
@@ -284,20 +366,21 @@ def main():
 
         # --- TAB 3: COMPARISON ---
         with tab3:
-            st.markdown("#### Side-by-Side Comparison")
-            choices = st.multiselect("Select Vehicles", df['Search_Name'].unique())
+            st.markdown('<div class="section-header">SIDE-BY-SIDE COMPARISON</div>', unsafe_allow_html=True)
+            choices = st.multiselect("SELECT VEHICLES", df['Search_Name'].unique())
             
             if choices:
                 comp_df = df[df['Search_Name'].isin(choices)].copy()
+                comp_df = comp_df.sort_values('Duty', ascending=True)
                 comp_df['Estimated Duty'] = comp_df['Duty'].apply(lambda x: f"KES {x:,.0f}")
                 
                 c1, c2 = st.columns([1, 1])
                 with c1:
-                    st.write("**Specs Matrix**")
+                    st.write("**SPECS MATRIX**")
                     disp = comp_df[['Search_Name', 'Estimated Duty', 'CC', 'Fuel', 'Drive', 'Transmission']].set_index('Search_Name').T
                     st.table(disp)
                 with c2:
-                    st.write("**Duty Chart**")
+                    st.write("**DUTY CHART**")
                     st.bar_chart(comp_df.set_index('Search_Name')['Duty'])
 
     else:
