@@ -25,6 +25,12 @@ st.markdown("""
         font-weight: 800; letter-spacing: 1px;
     }
 
+    .section-header {
+        text-align: center; font-size: 1rem; font-weight: 700; color: #4facfe;
+        text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;
+        border-bottom: 1px solid rgba(79, 172, 254, 0.3); padding-bottom: 5px;
+    }
+
     /* SEARCH CARD */
     .unit-card {
         background: rgba(255, 255, 255, 0.04); 
@@ -59,11 +65,14 @@ st.markdown("""
         color: #4facfe; text-align: center; padding: 10px; font-size: 0.8rem;
         border-top: 1px solid #333; z-index: 100;
     }
+
+    /* TABLE STYLING */
+    [data-testid="stTable"] { background-color: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. DATA LOADER (REFINED)
+# 2. DATA LOADER
 # ==========================================
 @st.cache_data
 def load_data():
@@ -83,6 +92,8 @@ def load_data():
             elif 'crsp' in c_l: rename_map[col] = 'CRSP'
             elif 'drive' in c_l: rename_map[col] = 'Drive'
             elif 'fuel' in c_l: rename_map[col] = 'Fuel'
+            elif 'seat' in c_l: rename_map[col] = 'Seating'
+            elif 'trans' in c_l: rename_map[col] = 'Transmission'
             
         df = df.rename(columns=rename_map)
         df['CRSP'] = pd.to_numeric(df['CRSP'].astype(str).str.replace(',', '').str.replace(' ', ''), errors='coerce').fillna(0)
@@ -129,31 +140,24 @@ def main():
     df, error = load_data()
     st.markdown("<h2 class='main-title'>KENYA VEHICLE DUTY CALCULATOR</h2>", unsafe_allow_html=True)
 
-    # Simplified Selector
     years = list(range(2025, 2017, -1))
     yom = st.selectbox("SELECT YEAR OF MANUFACTURE", years, index=years.index(2018))
 
     if not df.empty:
-        # Calculate and Sort
         df['Tax_Data'] = df.apply(lambda row: calculate_duty(row, yom), axis=1)
         df['Duty'] = df['Tax_Data'].apply(lambda x: x['Total'])
-        
-        # --- FORCED SORTING ---
         df = df.sort_values(by='Duty', ascending=True).reset_index(drop=True)
 
-        tab1, tab2, tab3 = st.tabs(["SEARCH", "TRENDS", "PURCHASE"])
+        tab1, tab2, tab3, tab4 = st.tabs(["SEARCH", "TRENDS", "COMPARE", "PURCHASE"])
 
+        # --- TAB 1: SEARCH ---
         with tab1:
             query = st.text_input("", placeholder="Search Make or Model...")
             filtered = df[df['Search_Name'].str.contains(query.upper())] if query else df
-            
-            # Re-sort filtered data to be absolutely sure
             filtered = filtered.sort_values(by='Duty', ascending=True)
 
-            # --- DYNAMIC GRID LOGIC ---
-            # On mobile, columns stack. To keep 1,2,3 order, we must use a specific loop.
             cols = st.columns(3)
-            for i, (idx, row) in enumerate(filtered.head(50).iterrows()):
+            for i, (idx, row) in enumerate(filtered.head(60).iterrows()):
                 with cols[i % 3]:
                     st.markdown(f"""
                     <div class="unit-card">
@@ -174,18 +178,49 @@ def main():
                         <div class="tax-row"><span>VAT</span><span>{t['VAT']:,.0f}</span></div>
                         """, unsafe_allow_html=True)
 
+        # --- TAB 2: TRENDS ---
         with tab2:
+            st.markdown('<div class="section-header">MARKET ANALYSIS</div>', unsafe_allow_html=True)
             st.dataframe(df[['Search_Name', 'CC', 'Fuel', 'Duty']], use_container_width=True, hide_index=True)
 
+        # --- TAB 3: COMPARE (RESTORED) ---
         with tab3:
+            st.markdown('<div class="section-header">SIDE-BY-SIDE COMPARISON</div>', unsafe_allow_html=True)
+            choices = st.multiselect("Select Vehicles to Compare", df['Search_Name'].unique())
+            if choices:
+                comp_df = df[df['Search_Name'].isin(choices)].copy()
+                comp_df = comp_df.sort_values('Duty')
+                
+                # Format labels for display
+                comp_df['Total Duty'] = comp_df['Duty'].apply(lambda x: f"KES {x:,.0f}")
+                
+                # Vertical Table for mobile-friendly reading
+                disp = comp_df[['Search_Name', 'Total Duty', 'CC', 'Fuel']].set_index('Search_Name').T
+                st.table(disp)
+                st.bar_chart(comp_df.set_index('Search_Name')['Duty'])
+
+        # --- TAB 4: PURCHASE ---
+        with tab4:
+            st.markdown('<div class="section-header">LANDED COST SIMULATOR</div>', unsafe_allow_html=True)
             car_sel = st.selectbox("SELECT CAR", sorted(df['Search_Name'].unique()))
             car_row = df[df['Search_Name'] == car_sel].iloc[0]
-            cnf = st.number_input("CNF PRICE (USD)", value=6000)
-            rate = st.number_input("RATE", value=130.0)
             
-            # Purchase Logic with your requested costs
-            landed = (cnf * rate) + car_row['Duty'] + 120000 + 35000 + 20000 + 45000 # Port + Carrier + Misc + Clearing/Reg
-            st.success(f"TOTAL LANDED: KES {landed:,.0f}")
+            c1, c2 = st.columns(2)
+            with c1:
+                cnf = st.number_input("CNF PRICE (USD)", value=6000)
+                rate = st.number_input("EXCHANGE RATE", value=130.0)
+            
+            with c2:
+                # Calculations with your specific costs
+                port = 120000
+                carrier = 35000
+                misc = 20000
+                clearing = 45000
+                
+                landed = (cnf * rate) + car_row['Duty'] + port + carrier + misc + clearing
+                st.metric("TOTAL LANDED COST", f"KES {landed:,.0f}")
+            
+            st.info(f"Summary: Duty(KES {car_row['Duty']:,.0f}) + CNF(KES {cnf*rate:,.0f}) + Logistics(KES {port+carrier+misc+clearing:,.0f})")
 
     st.markdown(f'<div class="footer-credit">Created by Marcel Byron</div>', unsafe_allow_html=True)
 
