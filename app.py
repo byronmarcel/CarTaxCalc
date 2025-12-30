@@ -145,9 +145,14 @@ def load_data():
             
         df = df.rename(columns=rename_map)
 
-        df['CRSP'] = pd.to_numeric(df['CRSP'], errors='coerce').fillna(0)
-        df = df[df['CRSP'] > 0] # Filter invalid prices
-        
+        # --- ROBUST CRSP CLEANING (Removes commas/spaces) ---
+        if 'CRSP' in df.columns:
+            df['CRSP'] = df['CRSP'].astype(str).str.replace(',', '').str.replace(' ', '')
+            df['CRSP'] = pd.to_numeric(df['CRSP'], errors='coerce').fillna(0)
+            df = df[df['CRSP'] > 0] # Filter invalid prices
+        else:
+            df['CRSP'] = 0
+
         def clean_cc(x):
             try: return int(''.join(filter(str.isdigit, str(x))))
             except: return 0
@@ -231,8 +236,13 @@ def main():
         yom = st.selectbox("Year of Manufacture", years, index=years.index(2018), label_visibility="collapsed")
 
     if not df.empty:
+        # 1. CALCULATE DUTY FIRST
         df['Tax_Data'] = df.apply(lambda row: calculate_duty_breakdown(row, yom), axis=1)
         df['Duty'] = df['Tax_Data'].apply(lambda x: x['Total'])
+        
+        # 2. GLOBAL SORT (Lowest Duty First)
+        # This ensures the dataframe is pre-sorted before any tab uses it.
+        df = df.sort_values(by='Duty', ascending=True)
 
         tab1, tab2, tab3, tab4 = st.tabs(["SEARCH", "MARKET TRENDS", "COMPARISON", "💰 PURCHASE UNIT"])
 
@@ -247,8 +257,10 @@ def main():
             if query:
                 filtered = filtered[filtered['Search_Name'].str.contains(query, case=False, na=False)]
             
-            filtered = filtered.sort_values('Duty', ascending=True)
-            st.markdown(f"<div style='text-align:center; margin:15px 0; color:#666; font-size:0.8rem;'>FOUND {len(filtered)} VEHICLES</div>", unsafe_allow_html=True)
+            # RE-SORT TO BE SAFE
+            filtered = filtered.sort_values(by='Duty', ascending=True)
+            
+            st.markdown(f"<div style='text-align:center; margin:15px 0; color:#666; font-size:0.8rem;'>FOUND {len(filtered)} VEHICLES (Sorted by Lowest Duty)</div>", unsafe_allow_html=True)
 
             cols = st.columns(3)
             for i, (idx, row) in enumerate(filtered.head(60).iterrows()):
@@ -354,7 +366,10 @@ def main():
             
             pc1, pc2, pc3 = st.columns([1, 2, 1])
             with pc2:
-                selected_car = st.selectbox("Select Vehicle to Import", df['Search_Name'].unique())
+                # Use Sorted List for Selectbox so cheaper cars appear first (or alphabetical? Let's do Alphabetical for findability)
+                # Actually, let's sort this specific dropdown A-Z for usability
+                sorted_names = sorted(df['Search_Name'].unique())
+                selected_car = st.selectbox("Select Vehicle to Import", sorted_names)
             
             if selected_car:
                 car_row = df[df['Search_Name'] == selected_car].iloc[0]
